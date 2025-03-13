@@ -1,9 +1,10 @@
 use std::net::{TcpListener, TcpStream};
 use std::io::prelude::*;
 use std::fs;
+use std::sync::Arc;
 
 use http_server::ThreadPool;
-use http_server::{Router, Response, Request, parse_request};
+use http_server::handlers::{Router, Response, Request, parse_request};
 
 const HOST: &str = "127.0.0.1";
 const PORT: &str = "7878";
@@ -12,23 +13,32 @@ fn hello_handler(_req: Request) -> Response {
     Response::new("HTTP/1.1 200 OK", "<h1>Hello, world!</h1>")
 }
 
+fn index_view(_req: Request) -> Response {
+    let contents = fs::read_to_string("index.html")
+        .unwrap_or("<h1>File not found</h1>".to_string());
+    Response::new("HTTP/1.1 200 OK", &contents)
+}
+
 fn main() {
     println!("Server is starting ...");
     // bind host and PORT
     let endpoint = format!("{}:{}", HOST, PORT);
     let listener: TcpListener = TcpListener::bind(&endpoint).unwrap();
     println!("Server running on: http://{}", &endpoint);
+    
+    let mut router = Router::new();
+    router.add_route("/", index_view);
+    router.add_route("/hello", hello_handler);
+    let router_arc = Arc::new(router);
 
     let pool = ThreadPool::new(4);
-
-    let mut router = Router::new();
-    router.add_route("/hello", hello_handler);
 
     for stream in listener.incoming() {
         match stream {
             Ok(mut stream) => {
-                pool.execute( || {
-                    handle_connection(stream);
+                let router_clone = Arc::clone(&router_arc);
+                pool.execute(move || {
+                    handle_connection(stream, &*router_clone);
                 })
             },
             Err(e) => eprintln!("Connection failed: {}", e),
@@ -69,6 +79,7 @@ fn main() {
 
 fn handle_connection(mut stream: TcpStream, router: &Router) {
     let mut buffer = [0; 1024];
+
     if let Ok(bytes_read) = stream.read(&mut buffer) {
         if bytes_read == 0 {
             return;

@@ -1,4 +1,5 @@
 use std::{sync::{mpsc::{self}, Arc, Mutex}, thread};
+pub mod handlers;
 
 pub struct ThreadPool{
     workers: Vec<Worker>,

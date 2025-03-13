@@ -1,7 +1,4 @@
-use std::fs;
-use std::io::{Read, Write};
-use std::net::{TcpListener, TcpStream};
-use std::sync::Arc;
+use std::{fs, sync::{Arc, Mutex}, thread, time::{Duration, SystemTime}};
 
 pub struct Request {
     method: String,
@@ -17,7 +14,7 @@ pub struct Response {
 }
 
 impl Response {
-    fn new(status_line: &str, body: &str) -> Self {
+    pub fn new(status_line: &str, body: &str) -> Self {
         let headers = vec![
             ("Content-Length".to_string(), body.len().to_string()),
             ("Content-Type".to_string(), "text/html".to_string()),
@@ -29,7 +26,7 @@ impl Response {
         }
     }
     
-    fn to_string(&self) -> String {
+    pub fn to_string(&self) -> String {
         let mut response = format!("{}\r\n", self.status_line);
         for (k, v) in &self.headers {
             response.push_str(&format!("{}: {}\r\n", k, v));
@@ -47,16 +44,16 @@ pub struct Router {
 }
 
 impl Router {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Router { routes: Vec::new() }
     }
     
-    fn add_route(&mut self, path: &str, handler: Handler) {
+    pub fn add_route(&mut self, path: &str, handler: Handler) {
         self.routes.push((path.to_string(), handler));
     }
     
     // Jeśli nie znajdzie pasującej, zwraca 404.
-    fn route(&self, req: Request) -> Response {
+    pub fn route(&self, req: Request) -> Response {
         for (route, handler) in &self.routes {
             if route == &req.path {
                 return handler(req);
