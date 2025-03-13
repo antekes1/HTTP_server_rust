@@ -2,7 +2,7 @@ use std::net::{TcpListener, TcpStream};
 use std::io::prelude::*;
 use std::fs;
 use std::sync::Arc;
-
+// import own libs
 use http_server::ThreadPool;
 use http_server::handlers::{Router, Response, Request, parse_request};
 
@@ -46,6 +46,21 @@ fn main() {
     }
 }
 
+fn handle_connection(mut stream: TcpStream, router: &Router) {
+    let mut buffer = [0; 1024];
+
+    if let Ok(bytes_read) = stream.read(&mut buffer) {
+        if bytes_read == 0 {
+            return;
+        }
+        let req = parse_request(&buffer[..bytes_read]);
+        let response = router.route(req);
+        let response_str = response.to_string();
+        stream.write(response_str.as_bytes()).unwrap();
+        stream.flush().unwrap();
+    }
+}
+
 // fn handle_connection(mut stream: TcpStream) {
 //     let mut buffer: [u8; 1024] = [0; 1024];
     
@@ -72,22 +87,4 @@ fn main() {
 //     );
 //     stream.write(response.as_bytes()).unwrap();
 //     stream.flush().unwrap();
-    
-
-    
 // }
-
-fn handle_connection(mut stream: TcpStream, router: &Router) {
-    let mut buffer = [0; 1024];
-
-    if let Ok(bytes_read) = stream.read(&mut buffer) {
-        if bytes_read == 0 {
-            return;
-        }
-        let req = parse_request(&buffer[..bytes_read]);
-        let response = router.route(req);
-        let response_str = response.to_string();
-        stream.write(response_str.as_bytes()).unwrap();
-        stream.flush().unwrap();
-    }
-}
